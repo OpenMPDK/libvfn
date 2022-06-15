@@ -19,6 +19,11 @@
 
 #define NVME_CID_AER (1 << 15)
 
+struct nvme_dbbuf {
+	void *doorbell;
+	void *eventidx;
+};
+
 /**
  * struct nvme_cq - Completion Queue
  */
@@ -34,6 +39,8 @@ struct nvme_cq {
 
 	/* memory-mapped register */
 	void *doorbell;
+
+	struct nvme_dbbuf dbbuf;
 
 	int phase;
 	int efd;
@@ -61,6 +68,8 @@ struct nvme_sq {
 
 	/* memory-mapped register */
 	void *doorbell;
+
+	struct nvme_dbbuf dbbuf;
 
 	/* rq stack */
 	struct nvme_rq *rqs;
@@ -92,6 +101,40 @@ static inline void nvme_sq_post(struct nvme_sq *sq, const void *sqe)
 		sq->tail = 0;
 }
 
+static inline bool __nvme_need_mmio(uint16_t eventidx, uint16_t val, uint16_t old)
+{
+	return (uint16_t)(val - eventidx) <= (uint16_t)(val - old);
+}
+
+static inline int nvme_try_dbbuf(uint16_t v, struct nvme_dbbuf *dbbuf)
+{
+	uint16_t old, eventidx;
+
+	if (!dbbuf->doorbell)
+		return -1;
+
+	/* force submission queue write */
+	wmb();
+
+	old = __LOAD_PTR(uint32_t *, dbbuf->doorbell);
+	__STORE_PTR(uint32_t *, dbbuf->doorbell, v);
+
+	/* do not reorder the eventidx load with the doorbell store */
+	mb();
+
+	eventidx = __LOAD_PTR(uint32_t *, dbbuf->eventidx);
+
+	if (!__nvme_need_mmio(eventidx, v, old)) {
+		__trace(NVME_SKIP_MMIO) {
+			__emit("eventidx %u val %u old %u\n", eventidx, v, old);
+		}
+
+		return 0;
+	}
+
+	return -1;
+}
+
 /**
  * nvme_sq_run - Ring the submission queue doorbell
  * @sq: Submission queue
@@ -107,8 +150,13 @@ static inline void nvme_sq_run(struct nvme_sq *sq)
 		__emit("sqid %d tail %d\n", sq->id, sq->tail);
 	}
 
-	/* force submission queue write before ringing the doorbell */
-	wmb(); mmio_write32(sq->doorbell, cpu_to_le32(sq->tail));
+	if (nvme_try_dbbuf(sq->tail, &sq->dbbuf)) {
+		/* do not reorder queue entry store with doorbell store */
+		wmb();
+
+		mmio_write32(sq->doorbell, cpu_to_le32(sq->tail));
+	}
+
 	sq->ptail = sq->tail;
 }
 
@@ -148,7 +196,8 @@ static inline void nvme_cq_update_head(struct nvme_cq *cq)
 		__emit("cqid %d head %d\n", cq->id, cq->head);
 	}
 
-	mmio_write32(cq->doorbell, cpu_to_le32(cq->head));
+	if (nvme_try_dbbuf(cq->head, &cq->dbbuf))
+		mmio_write32(cq->doorbell, cpu_to_le32(cq->head));
 }
 
 /**

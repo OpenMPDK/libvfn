@@ -16,6 +16,10 @@
 #define NVME_FIELD_SET(value, name) \
 	(((value) & NVME_##name##_MASK) << NVME_##name##_SHIFT)
 
+enum nvme_constants {
+	NVME_IDENTIFY_DATA_SIZE		= 4096,
+};
+
 enum nvme_reg {
 	NVME_REG_CAP			= 0x0000,
 	NVME_REG_CC			= 0x0014,
@@ -83,6 +87,20 @@ enum nvme_admin_opcode {
 	NVME_ADMIN_CREATE_SQ            = 0x01,
 	NVME_ADMIN_DELETE_CQ		= 0x04,
 	NVME_ADMIN_CREATE_CQ            = 0x05,
+	NVME_ADMIN_IDENTIFY		= 0x06,
 	NVME_ADMIN_SET_FEATURES         = 0x09,
 	NVME_ADMIN_ASYNC_EVENT          = 0x0c,
+	NVME_ADMIN_DBCONFIG		= 0x7c,
+};
+
+enum nvme_identify_cns {
+	NVME_IDENTIFY_CNS_CTRL		= 0x01,
+};
+
+enum nvme_identify_ctrl_offset {
+	NVME_IDENTIFY_CTRL_OACS		= 0x100,
+};
+
+enum nvme_identify_ctrl_oacs {
+	NVME_IDENTIFY_CTRL_OACS_DBCONFIG = 1 << 8,
 };

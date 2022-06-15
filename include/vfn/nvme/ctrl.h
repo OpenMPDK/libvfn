@@ -17,10 +17,13 @@
 
 struct nvme_ctrl_opts {
 	uint16_t nsqr, ncqr;
+#define NVME_QUIRK_BROKEN_DBBUF (1 << 0)
+	unsigned int quirks;
 };
 
 static const struct nvme_ctrl_opts nvme_ctrl_opts_default = {
 	.nsqr = 63, .ncqr = 63,
+	.quirks = 0x0,
 };
 
 /**
@@ -51,6 +54,14 @@ struct nvme_ctrl {
 	 * @doorbells: mapped doorbell registers
 	 */
 	void *doorbells;
+
+	/**
+	 * @dbbuf: doorbell buffers
+	 */
+	struct {
+		void *doorbells;
+		void *eventidxs;
+	} dbbuf;
 
 	/**
 	 * @opts: controller options

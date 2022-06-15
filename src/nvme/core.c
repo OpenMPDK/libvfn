@@ -87,6 +87,11 @@ int nvme_configure_cq(struct nvme_ctrl *ctrl, unsigned int qid, unsigned int qsi
 		.efd = -1,
 	};
 
+	if (ctrl->dbbuf.doorbells) {
+		cq->dbbuf.doorbell = cqhdbl(ctrl->dbbuf.doorbells, qid, dstrd);
+		cq->dbbuf.eventidx = cqhdbl(ctrl->dbbuf.eventidxs, qid, dstrd);
+	}
+
 	len = pgmapn(&cq->vaddr, qsize, 1 << NVME_CQES);
 
 	if (vfio_map_vaddr(&ctrl->pci.vfio, cq->vaddr, len, &cq->iova)) {
@@ -112,6 +117,11 @@ void nvme_discard_cq(struct nvme_ctrl *ctrl, struct nvme_cq *cq)
 		__debug("failed to unmap vaddr\n");
 
 	pgunmap(cq->vaddr, len);
+
+	if (ctrl->dbbuf.doorbells) {
+		__STORE_PTR(uint32_t *, cq->dbbuf.doorbell, 0);
+		__STORE_PTR(uint32_t *, cq->dbbuf.eventidx, 0);
+	}
 
 	memset(cq, 0x0, sizeof(*cq));
 }
@@ -147,7 +157,13 @@ int nvme_configure_sq(struct nvme_ctrl *ctrl, unsigned int qid, unsigned int qsi
 		.cq = cq,
 	};
 
+	if (ctrl->dbbuf.doorbells) {
+		sq->dbbuf.doorbell = sqtdbl(ctrl->dbbuf.doorbells, qid, dstrd);
+		sq->dbbuf.eventidx = sqtdbl(ctrl->dbbuf.eventidxs, qid, dstrd);
+	}
+
 	len = pgmapn(&sq->pages.vaddr, qsize, __VFN_PAGESIZE);
+
 	if (len < 0)
 		return -1;
 
@@ -218,6 +234,11 @@ void nvme_discard_sq(struct nvme_ctrl *ctrl, struct nvme_sq *sq)
 		__debug("failed to unmap vaddr\n");
 
 	pgunmap(sq->pages.vaddr, len);
+
+	if (ctrl->dbbuf.doorbells) {
+		__STORE_PTR(uint32_t *, sq->dbbuf.doorbell, 0);
+		__STORE_PTR(uint32_t *, sq->dbbuf.eventidx, 0);
+	}
 
 	memset(sq, 0x0, sizeof(*sq));
 }
@@ -423,11 +444,57 @@ int nvme_reset(struct nvme_ctrl *ctrl)
 	return nvme_wait_rdy(ctrl, 0);
 }
 
+static int nvme_init_dbconfig(struct nvme_ctrl *ctrl)
+{
+	uint64_t prp1, prp2;
+	union nvme_cmd cmd;
+
+	if (pgmap((void **)&ctrl->dbbuf.doorbells, __VFN_PAGESIZE) < 0)
+		return -1;
+
+	if (vfio_map_vaddr(&ctrl->pci.vfio, ctrl->dbbuf.doorbells, __VFN_PAGESIZE, &prp1))
+		return -1;
+
+	if (pgmap((void **)&ctrl->dbbuf.eventidxs, __VFN_PAGESIZE) < 0)
+		return -1;
+
+	if (vfio_map_vaddr(&ctrl->pci.vfio, ctrl->dbbuf.eventidxs, __VFN_PAGESIZE, &prp2))
+		return -1;
+
+	cmd = (union nvme_cmd) {
+		.opcode = NVME_ADMIN_DBCONFIG,
+		.dptr.prp1 = cpu_to_le64(prp1),
+		.dptr.prp2 = cpu_to_le64(prp2),
+	};
+
+	if (nvme_admin(ctrl, &cmd, NULL, 0x0, NULL))
+		return -1;
+
+	if (!(ctrl->opts.quirks & NVME_QUIRK_BROKEN_DBBUF)) {
+		uint64_t cap;
+		uint8_t dstrd;
+
+		cap = le64_to_cpu(mmio_read64(ctrl->regs + NVME_REG_CAP));
+		dstrd = NVME_FIELD_GET(cap, CAP_DSTRD);
+
+		ctrl->adminq.cq->dbbuf.doorbell = cqhdbl(ctrl->dbbuf.doorbells, NVME_AQ, dstrd);
+		ctrl->adminq.cq->dbbuf.eventidx = cqhdbl(ctrl->dbbuf.eventidxs, NVME_AQ, dstrd);
+
+		ctrl->adminq.sq->dbbuf.doorbell = sqtdbl(ctrl->dbbuf.doorbells, NVME_AQ, dstrd);
+		ctrl->adminq.sq->dbbuf.eventidx = sqtdbl(ctrl->dbbuf.eventidxs, NVME_AQ, dstrd);
+	}
+
+	return 0;
+}
+
 int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_opts *opts)
 {
 	unsigned long long classcode;
 	uint64_t cap;
 	uint8_t mpsmin;
+	uint16_t oacs;
+	ssize_t len;
+	void *vaddr;
 
 	union nvme_cmd cmd = {};
 	struct nvme_cqe cqe;
@@ -520,6 +587,29 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 				  NVME_FIELD_GET(le32_to_cpu(cqe.dw0), FEAT_NRQS_NSQR));
 	ctrl->config.ncqa = min_t(uint16_t, ctrl->opts.ncqr,
 				  NVME_FIELD_GET(le32_to_cpu(cqe.dw0), FEAT_NRQS_NCQR));
+
+	len = pgmap(&vaddr, NVME_IDENTIFY_DATA_SIZE);
+	if (len < 0)
+		return -1;
+
+	cmd.identify = (struct nvme_cmd_identify) {
+		.opcode = NVME_ADMIN_IDENTIFY,
+		.cid = 0x1,
+		.cns = NVME_IDENTIFY_CNS_CTRL,
+	};
+
+	if (nvme_admin(ctrl, &cmd, vaddr, len, NULL))
+		return -1;
+
+
+	oacs = le16_to_cpu(*(leint16_t *)(vaddr + NVME_IDENTIFY_CTRL_OACS));
+
+	pgunmap(vaddr, len);
+
+	if (oacs & NVME_IDENTIFY_CTRL_OACS_DBCONFIG) {
+		if (nvme_init_dbconfig(ctrl))
+			return -1;
+	}
 
 	return 0;
 }
