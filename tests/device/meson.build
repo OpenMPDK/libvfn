@@ -8,7 +8,9 @@ device_test_sources = [
 
 device_tests = {
   'aer': ['aer.c'],
-  'basic': ['basic.c'],
+  'flush': ['flush.c'],
+  'identify': ['identify.c'],
+  'io': ['io.c'],
   'open': ['open.c'],
 }
 

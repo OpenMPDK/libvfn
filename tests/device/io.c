@@ -21,6 +21,7 @@
 
 #include <nvme/types.h>
 
+#include "ccan/err/err.h"
 #include "ccan/opt/opt.h"
 #include "ccan/tap/tap.h"
 
@@ -34,19 +35,11 @@ static int test_io(void)
 	ssize_t len;
 	int ret;
 
-	struct nvme_sq *sq;
 	union nvme_cmd cmd;
-
-	if (nvme_create_ioqpair(&ctrl, 1, 8, 0x0)) {
-		diag("could not create io queue pair");
-		return -1;
-	}
-
-	sq = &ctrl.sq[1];
 
 	len = pgmap(&vaddr, __VFN_PAGESIZE);
 	if (len < 0)
-		goto out;
+		err(1, "failed to map memory");
 
 	cmd.rw = (struct nvme_cmd_rw) {
 		.opcode = nvme_cmd_read,
@@ -57,54 +50,23 @@ static int test_io(void)
 
 	pgunmap(vaddr, len);
 
-out:
-	if (nvme_delete_ioqpair(&ctrl, 1)) {
-		diag("could not delete io queue pair");
-		return -1;
-	}
-
-	return ret;
-}
-
-static int test_identify(uint8_t cns)
-{
-	union nvme_cmd cmd;
-	void *vaddr;
-	ssize_t len;
-	int ret;
-
-	len = pgmap(&vaddr, NVME_IDENTIFY_DATA_SIZE);
-	if (len < 0)
-		return -1;
-
-	cmd.identify = (struct nvme_cmd_identify) {
-		.opcode = nvme_admin_identify,
-		.cns = cns,
-		.nsid = cpu_to_le32(nsid),
-	};
-
-	ret = nvme_admin(&ctrl, &cmd, vaddr, len, NULL);
-
-	pgunmap(vaddr, len);
-
 	return ret;
 }
 
 int main(int argc, char **argv)
 {
-	setup(argc, argv);
+	setup_io(argc, argv);
 
-	plan_tests(3);
+	plan_tests(1);
 
-	ok(test_identify(NVME_IDENTIFY_CNS_CTRL) == 0, "identify controller");
-
-	if (nsid) {
-		ok(test_identify(NVME_IDENTIFY_CNS_NS) == 0, "identify namespace");
-		ok(test_io() == 0, "io read");
-	} else {
-		skip(2, "namespace identifier not set");
+	if (!nsid) {
+		skip(1, "namespace identifier not set");
+		goto out;
 	}
 
+	ok(test_io() == 0, "io read");
+
+out:
 	teardown();
 
 	return 0;

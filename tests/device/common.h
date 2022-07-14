@@ -22,6 +22,8 @@
 #define EXIT_SKIPPED 77
 
 extern struct nvme_ctrl ctrl;
+extern struct nvme_sq *sq;
+extern struct nvme_cq *cq;
 
 extern char *bdf;
 extern bool show_usage;
@@ -29,7 +31,9 @@ extern unsigned long nsid;
 
 extern struct opt_table opts[];
 
+void parse_args(int argc, char *argv[]);
 void setup(int argc, char *argv[]);
+void setup_io(int argc, char *argv[]);
 void teardown(void);
 
 #endif /* LIBVFN_TESTS_DEVICE_COMMON_H */

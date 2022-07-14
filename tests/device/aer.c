@@ -21,6 +21,7 @@
 
 #include <nvme/types.h>
 
+#include "ccan/err/err.h"
 #include "ccan/opt/opt.h"
 #include "ccan/tap/tap.h"
 
@@ -39,7 +40,7 @@ static int get_smart_log(void)
 
 	len = pgmap((void **)&log, sizeof(*log));
 	if (len < 0)
-		return -1;
+		err(1, "failed to map memory");
 
 	cmd.log = (struct nvme_cmd_log) {
 		.opcode = nvme_admin_get_log_page,
@@ -88,29 +89,23 @@ static int test_aer(void)
 		.cdw11 = cpu_to_le32(NVME_SET(NVME_SMART_CRIT_TEMPERATURE, FEAT_AE_SMART)),
 	};
 
-	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, NULL)) {
-		diag("could not set asynchronous event configuration");
-		return -1;
-	}
+	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, NULL))
+		err(1, "could not set asynchronous event configuration");
 
 	cmd.features = (struct nvme_cmd_features) {
 		.opcode = nvme_admin_get_features,
 		.fid = NVME_FEAT_FID_TEMP_THRESH,
 	};
 
-	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe)) {
-		diag("could not get current temperature threshold");
-		return -1;
-	}
+	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe))
+		err(1, "could not get current temperature threshold");
 
 	temp_thresh = le32_to_cpu(cqe.dw0);
 
 	diag("current temperature threshold is %"PRIu32" K\n", temp_thresh);
 
-	if (nvme_aen_enable(&ctrl, handle_aen)) {
-		diag("could not enable aen");
-		return -1;
-	}
+	if (nvme_aen_enable(&ctrl, handle_aen))
+		err(1, "could not enable aen");
 
 	cmd.features = (struct nvme_cmd_features) {
 		.opcode = nvme_admin_set_features,
@@ -119,10 +114,8 @@ static int test_aer(void)
 	};
 
 	do {
-		if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe)) {
-			diag("could not set temperature threshold");
-			return -1;
-		}
+		if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe))
+			err(1, "could not set temperature threshold");
 	} while (!aen_received);
 
 	cmd.features = (struct nvme_cmd_features) {
@@ -131,15 +124,11 @@ static int test_aer(void)
 		.cdw11 = cpu_to_le32(NVME_SET(temp_thresh, FEAT_TT_TMPTH)),
 	};
 
-	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe)) {
-		diag("could not reset temperature threshold");
-		return -1;
-	}
+	if (nvme_admin(&ctrl, &cmd, NULL, 0x0, &cqe))
+		err(1, "could not reset temperature threshold");
 
-	if (get_smart_log()) {
-		diag("could not clear event");
-		return -1;
-	}
+	if (get_smart_log())
+		err(1, "could not clear event");
 
 	return 0;
 }
@@ -148,7 +137,7 @@ int main(int argc, char **argv)
 {
 	setup(argc, argv);
 
-	plan_no_plan();
+	plan_tests(1);
 
 	ok(test_aer() == 0, "aer");
 

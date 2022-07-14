@@ -25,6 +25,8 @@
 #include "common.h"
 
 struct nvme_ctrl ctrl;
+struct nvme_sq *sq;
+struct nvme_cq *cq;
 
 char *bdf;
 unsigned long nsid;
@@ -38,7 +40,7 @@ struct opt_table opts[] = {
 	OPT_ENDTABLE,
 };
 
-void setup(int argc, char *argv[])
+void parse_args(int argc, char *argv[])
 {
 	opt_register_table(opts, NULL);
 	opt_parse(&argc, argv, opt_log_stderr_exit);
@@ -47,6 +49,11 @@ void setup(int argc, char *argv[])
 		opt_usage_and_exit(NULL);
 
 	opt_free_table();
+}
+
+void setup(int argc, char *argv[])
+{
+	parse_args(argc, argv);
 
 	if (!bdf) {
 		plan_skip_all("no test device");
@@ -57,7 +64,21 @@ void setup(int argc, char *argv[])
 		err(1, "failed to init nvme controller");
 }
 
+void setup_io(int argc, char *argv[])
+{
+	setup(argc, argv);
+
+	if (nvme_create_ioqpair(&ctrl, 1, 8, 0x0))
+		err(1, "could not create i/o queue pair");
+
+	sq = &ctrl.sq[1];
+	cq = &ctrl.cq[1];
+}
+
 void teardown(void)
 {
+	if (sq && nvme_delete_ioqpair(&ctrl, 1))
+		err(1, "could not delete io queue pair");
+
 	nvme_close(&ctrl);
 }
