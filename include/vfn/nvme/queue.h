@@ -87,7 +87,7 @@ struct nvme_sq {
  */
 static inline void nvme_sq_post(struct nvme_sq *sq, const union nvme_cmd *sqe)
 {
-	memcpy(sq->vaddr + (sq->tail << NVME_SQES), sqe, 1 << NVME_SQES);
+	memcpy(((uint8_t *) sq->vaddr) + (sq->tail << NVME_SQES), sqe, 1 << NVME_SQES);
 
 	trace_guard(NVME_SQ_POST) {
 		trace_emit("sqid %d tail %d\n", sq->id, sq->tail);
@@ -177,7 +177,7 @@ static inline void nvme_sq_exec(struct nvme_sq *sq, const union nvme_cmd *sqe)
  */
 static inline struct nvme_cqe *nvme_cq_head(struct nvme_cq *cq)
 {
-	return (struct nvme_cqe *)(cq->vaddr + (cq->head << NVME_CQES));
+	return (struct nvme_cqe *)(((uint8_t *) cq->vaddr) + (cq->head << NVME_CQES));
 }
 
 /**

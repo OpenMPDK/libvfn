@@ -27,11 +27,42 @@ int errno;
 
 #include "types.h"
 
+#ifdef __APPLE__
+inline void *cqhdbl(void *doorbells, int qid, int dstrd)
+{
+	struct macvfn_pci_map_bar *doorbell_mapping = (struct macvfn_pci_map_bar *) doorbells;
+	struct macvfn_pci_map_bar *new_mapping = (struct macvfn_pci_map_bar *) zmallocn(1,
+		sizeof(struct macvfn_pci_map_bar));
+
+	new_mapping->pci = doorbell_mapping->pci;
+	new_mapping->idx = doorbell_mapping->idx;
+	new_mapping->len = doorbell_mapping->len;
+	new_mapping->offset = doorbell_mapping->offset + (2 * qid + 1) * (4 << dstrd);
+
+	return new_mapping;
+}
+
+inline void *sqtdbl(void *doorbells, int qid, int dstrd)
+{
+	struct macvfn_pci_map_bar *doorbell_mapping = (struct macvfn_pci_map_bar *) doorbells;
+	struct macvfn_pci_map_bar *new_mapping = (struct macvfn_pci_map_bar *) zmallocn(1,
+		sizeof(struct macvfn_pci_map_bar));
+
+	new_mapping->pci = doorbell_mapping->pci;
+	new_mapping->idx = doorbell_mapping->idx;
+	new_mapping->len = doorbell_mapping->len;
+	new_mapping->offset = doorbell_mapping->offset + (2 * qid) * (4 << dstrd);
+
+	return new_mapping;
+}
+#else
 #define cqhdbl(doorbells, qid, dstrd) \
 	(doorbells + (2 * qid + 1) * (4 << dstrd))
 
 #define sqtdbl(doorbells, qid, dstrd) \
 	(doorbells + (2 * qid) * (4 << dstrd))
+#endif
+
 
 enum nvme_ctrl_feature_flags {
 	NVME_CTRL_F_ADMINISTRATIVE = 1 << 0,

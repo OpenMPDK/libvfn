@@ -18,6 +18,7 @@
 #ifndef __APPLE__
 #include <vfn/vfio.h>
 #else
+#define NVME_AQ_QSIZE 32
 #include <vfn/driverkit.h>
 #endif
 

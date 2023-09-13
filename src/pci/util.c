@@ -10,12 +10,33 @@
  * COPYING and LICENSE files for more information.
  */
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef __APPLE__
 #include <linux/limits.h>
 #include <sys/stat.h>
+#endif
+
 #include <vfn/support.h>
 #include <vfn/pci/util.h>
 
+#include <string.h>
 
+
+#ifdef __APPLE__
+int pci_device_info_get_ull(const char *bdf, const char *prop, unsigned long long *v)
+{
+	if (!strcmp(prop, "class")) {
+		// TODO: Actually read this from device once it makes sense
+		*v = 0x010800;
+	} else {
+		return -1;
+	}
+	return 0;
+}
+#else
 int pci_unbind(const char *bdf)
 {
 	char *path = NULL;
@@ -263,3 +284,8 @@ out:
 
 	return vfio_id;
 }
+#endif
+
+#ifdef __cplusplus
+}
+#endif

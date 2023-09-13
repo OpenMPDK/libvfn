@@ -120,9 +120,9 @@ int _iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *i
 	m = znew_t(struct iova_mapping, 1);
 	m->vaddr = vaddr;
 	m->len = len;
-	m->iova = 0;
-	m->opaque[0] = NULL;
-	m->opaque[1] = opaque;
+	m->iova = 0; // Physical/IOMMU address
+	m->opaque[0] = NULL; // IODMACommand
+	m->opaque[1] = opaque; // IOMemoryDescriptor
 	m->flags = flags;
 
 	if (ctx->ops.dma_map(ctx, m)) {
@@ -208,6 +208,7 @@ int iommu_unmap_all(struct iommu_ctx *ctx)
 	return 0;
 }
 
+#ifndef __APPLE__
 int iommu_get_iova_ranges(struct iommu_ctx *ctx, struct iommu_iova_range **ranges)
 {
 	*ranges = ctx->iova_ranges;
@@ -218,6 +219,7 @@ int iommu_iova_range_to_string(struct iommu_iova_range *r, char **str)
 {
 	return asprintf(str, "[0x%llx; 0x%llx]", r->start, r->last);
 }
+#endif
 
 #ifdef __cplusplus
 }

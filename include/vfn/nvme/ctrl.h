@@ -43,7 +43,11 @@ struct nvme_ctrl {
 	/**
 	 * @pci: vfio pci device state
 	 */
+	#ifdef __APPLE__
+	struct driverkit_pci_device pci;
+	#else
 	struct vfio_pci_device pci;
+	#endif
 
 	/**
 	 * @serial: Serial number from controller
