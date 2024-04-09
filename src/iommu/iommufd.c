@@ -144,7 +144,7 @@ close_dev:
 }
 
 static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
-				 unsigned long flags)
+				 unsigned long flags, void **opaque UNUSED)
 {
 	struct iommu_ioas *ioas = container_of_var(ctx, ioas, ctx);
 
@@ -191,9 +191,11 @@ static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len,
 	return 0;
 }
 
-static int iommu_ioas_do_dma_unmap(struct iommu_ctx *ctx, uint64_t iova, size_t len)
+static int iommu_ioas_do_dma_unmap(struct iommu_ctx *ctx, struct iova_mapping *m)
 {
 	struct iommu_ioas *ioas = container_of_var(ctx, ioas, ctx);
+	uint64_t iova = m->iova;
+	size_t len = m->len;
 
 	struct iommu_ioas_unmap unmap = {
 		.size = sizeof(unmap),
@@ -216,7 +218,11 @@ static int iommu_ioas_do_dma_unmap(struct iommu_ctx *ctx, uint64_t iova, size_t 
 
 static int iommu_ioas_do_dma_unmap_all(struct iommu_ctx *ctx)
 {
-	return iommu_ioas_do_dma_unmap(ctx, 0, UINT64_MAX);
+	struct iova_mapping m = {
+		.iova = 0,
+		.len = UINT64_MAX
+	};
+	return iommu_ioas_do_dma_unmap(ctx, &m);
 }
 
 static const struct iommu_ctx_ops iommufd_ops = {

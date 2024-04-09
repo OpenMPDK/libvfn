@@ -394,7 +394,7 @@ static int vfio_get_device_fd(struct iommu_ctx *ctx, const char *bdf)
 }
 
 static int vfio_iommu_type1_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len,
-				       uint64_t *iova, unsigned long flags)
+				       uint64_t *iova, unsigned long flags, void **opaque UNUSED)
 {
 	struct vfio_container *vfio = container_of_var(ctx, vfio, ctx);
 
@@ -430,9 +430,11 @@ static int vfio_iommu_type1_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_
 	return 0;
 }
 
-static int vfio_iommu_type1_do_dma_unmap(struct iommu_ctx *ctx, uint64_t iova, size_t len)
+static int vfio_iommu_type1_do_dma_unmap(struct iommu_ctx *ctx, struct iova_mapping *m)
 {
 	struct vfio_container *vfio = container_of_var(ctx, vfio, ctx);
+	uint64_t iova = m->iova;
+	size_t len = m->len;
 
 	struct vfio_iommu_type1_dma_unmap dma_unmap = {
 		.argsz = sizeof(dma_unmap),
