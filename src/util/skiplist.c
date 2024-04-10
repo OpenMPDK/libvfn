@@ -12,6 +12,12 @@
 
 #include <stdlib.h>
 
+#ifndef __APPLE__
+#define _rand rand
+#else
+#define _rand arc4random
+#endif
+
 #include "skiplist.h"
 
 void skiplist_init(struct skiplist *list)
@@ -81,7 +87,7 @@ static inline int __skiplist_random_level(void)
 {
 	int k = 0;
 
-	while (k < SKIPLIST_LEVELS - 1 && (rand() > (RAND_MAX / 2)))
+	while (k < SKIPLIST_LEVELS - 1 && (_rand() > (RAND_MAX / 2)))
 		k++;
 
 	return k;
