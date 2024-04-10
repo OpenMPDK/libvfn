@@ -10,6 +10,9 @@
  * COPYING and LICENSE files for more information.
  */
 
+#ifndef LIBVFN_SKIPLIST_H
+#define LIBVFN_SKIPLIST_H
+
 #include "ccan/list/list.h"
 
 #ifndef SKIPLIST_LEVELS
@@ -58,3 +61,5 @@ void skiplist_link(struct skiplist *list, struct skiplist_node *n,
 		   struct skiplist_node *update[SKIPLIST_LEVELS]);
 void skiplist_erase(struct skiplist *list, struct skiplist_node *n,
 		    struct skiplist_node *update[SKIPLIST_LEVELS]);
+
+#endif /* LIBVFN_SKIPLIST_H */
