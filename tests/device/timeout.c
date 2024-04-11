@@ -32,13 +32,13 @@
 static int test_timeout(void)
 {
 	struct nvme_cqe cqe;
-	struct timespec timeout = {.tv_sec = 1};
+	uint64_t timeout_ns = 1000000000;
 	int ret;
 
 	if (nvme_aer(&ctrl, NULL))
 		err(1, "could not enable aen");
 
-	ret = nvme_cq_wait_cqes(ctrl.adminq.cq, &cqe, 1, &timeout);
+	ret = nvme_cq_wait_cqes(ctrl.adminq.cq, &cqe, 1, timeout_ns);
 	if (ret != 1 || errno != ETIMEDOUT)
 		return -1;
 

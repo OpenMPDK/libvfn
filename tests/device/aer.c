@@ -85,7 +85,7 @@ static int test_aer(void)
 	union nvme_cmd cmd;
 	struct nvme_rq *rq;
 	struct nvme_cqe cqe, cqes[2];
-	struct timespec timeout = {.tv_sec = 1};
+	uint64_t timeout_ns = 1000000000;
 	int ret;
 
 	uint32_t temp_thresh;
@@ -133,7 +133,7 @@ static int test_aer(void)
 
 	nvme_rq_exec(rq, &cmd);
 
-	ret = nvme_cq_wait_cqes(ctrl.adminq.cq, cqes, 2, &timeout);
+	ret = nvme_cq_wait_cqes(ctrl.adminq.cq, cqes, 2, timeout_ns);
 	if (ret < 2 && errno == ETIMEDOUT)
 		err(errno, "not enough completions in time");
 

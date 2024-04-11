@@ -279,7 +279,7 @@ void nvme_cq_get_cqes(struct nvme_cq *cq, struct nvme_cqe *cqes, int n);
  * @cq: Completion queue
  * @cqes: Pointer to array of struct cqe to place cqes into
  * @n: Number of cqes to reap
- * @ts: Maximum time to wait for CQEs
+ * @timeout_ns: Maximum time to wait for CQEs in nanoseconds
  *
  * Continuously poll @cq and copy @n cqes into @cqes if not NULL.
  *
@@ -288,6 +288,6 @@ void nvme_cq_get_cqes(struct nvme_cq *cq, struct nvme_cqe *cqes, int n);
  * Return: ``n`` on success. On timeout, returns the number of cqes reaped
  * (i.e., less than ``n``) and sets ``errno``.
  */
-int nvme_cq_wait_cqes(struct nvme_cq *cq, struct nvme_cqe *cqes, int n, struct timespec *ts);
+int nvme_cq_wait_cqes(struct nvme_cq *cq, struct nvme_cqe *cqes, int n, uint64_t timeout_ns);
 
 #endif /* LIBVFN_NVME_QUEUE_H */
