@@ -19,7 +19,6 @@
 #include "ccan/compiler/compiler.h"
 #include "ccan/minmax/minmax.h"
 #ifndef __APPLE__
-#include <sys/uio.h>
 #include "ccan/time/time.h"
 #else
 #include <time.h>
@@ -382,19 +381,25 @@ int nvme_delete_ioqpair(struct nvme_ctrl *ctrl, int qid)
 	return 0;
 }
 
+#ifndef __APPLE__
+#define _time_ns time_now().ts.tv_nsec
+#else
+#define _time_ns clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)
+#endif
+
 static int nvme_wait_rdy(struct nvme_ctrl *ctrl, unsigned short rdy)
 {
 	uint64_t cap;
+	uint64_t timeout_ns;
+	uint64_t deadline_ns;
 	uint32_t csts;
-	unsigned long timeout_ms;
-	struct timeabs deadline;
 
 	cap = le64_to_cpu(mmio_read64(ctrl->regs, NVME_REG_CAP));
-	timeout_ms = 500 * (NVME_FIELD_GET(cap, CAP_TO) + 1);
-	deadline = timeabs_add(time_now(), time_from_msec(timeout_ms));
+	timeout_ns = 500 * (NVME_FIELD_GET(cap, CAP_TO) + 1) * 1000000;
+	deadline_ns = _time_ns + timeout_ns;
 
 	do {
-		if (time_after(time_now(), deadline)) {
+		if ((uint64_t)_time_ns > deadline_ns) {
 			log_debug("timed out\n");
 
 			errno = ETIMEDOUT;
