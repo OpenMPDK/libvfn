@@ -102,7 +102,8 @@ enum nvme_identify_cns {
 };
 
 enum nvme_identify_ctrl_offset {
-	NVME_IDENTIFY_CTRL_OACS		= 0x100,
+	NVME_IDENTIFY_CTRL_SERIAL_NUMBER = 0x4,
+	NVME_IDENTIFY_CTRL_OACS			 = 0x100,
 };
 
 enum nvme_identify_ctrl_oacs {

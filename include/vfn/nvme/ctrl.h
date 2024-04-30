@@ -46,6 +46,11 @@ struct nvme_ctrl {
 	struct vfio_pci_device pci;
 
 	/**
+	 * @serial: Serial number from controller
+	 */
+	char serial[20];
+
+	/**
 	 * @regs: Controller Configuration (``MBAR.CC``) registers
 	 */
 	void *regs;

@@ -617,6 +617,8 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 		goto out;
 	}
 
+	memcpy(ctrl->serial, ((char *) vaddr) +
+		NVME_IDENTIFY_CTRL_SERIAL_NUMBER, sizeof(ctrl->serial));
 	oacs = le16_to_cpu(*(leint16_t *)(((uintptr_t) vaddr) + NVME_IDENTIFY_CTRL_OACS));
 
 	if (oacs & NVME_IDENTIFY_CTRL_OACS_DBCONFIG)
