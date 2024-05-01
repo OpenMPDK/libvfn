@@ -393,30 +393,29 @@ static int vfio_get_device_fd(struct iommu_ctx *ctx, const char *bdf)
 	return ret_fd;
 }
 
-static int vfio_iommu_type1_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len,
-				       uint64_t *iova, unsigned long flags, void **opaque UNUSED)
+static int vfio_iommu_type1_do_dma_map(struct iommu_ctx *ctx, struct iova_mapping *m)
 {
 	struct vfio_container *vfio = container_of_var(ctx, vfio, ctx);
 
 	struct vfio_iommu_type1_dma_map dma_map = {
 		.argsz = sizeof(dma_map),
-		.vaddr = (uintptr_t)vaddr,
-		.size  = len,
-		.iova  = *iova,
+		.vaddr = (uintptr_t)m->vaddr,
+		.size  = m->len,
+		.iova  = m->iova,
 		.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE,
 	};
 
-	if (flags & IOMMU_MAP_NOWRITE)
+	if (m->flags & IOMMU_MAP_NOWRITE)
 		dma_map.flags &= ~VFIO_DMA_MAP_FLAG_WRITE;
 
-	if (flags & IOMMU_MAP_NOREAD)
+	if (m->flags & IOMMU_MAP_NOREAD)
 		dma_map.flags &= ~VFIO_DMA_MAP_FLAG_READ;
 
 	trace_guard(VFIO_IOMMU_TYPE1_MAP_DMA) {
-		trace_emit("vaddr %p iova 0x%" PRIx64 " len %zu\n", vaddr, *iova, len);
+		trace_emit("vaddr %p iova 0x%" PRIx64 " len %zu\n", m->vaddr, m->iova, m->len);
 	}
 
-	if (!ALIGNED(((uintptr_t)vaddr | len | *iova), __VFN_PAGESIZE)) {
+	if (!ALIGNED(((uintptr_t)m->vaddr | m->len | m->iova), __VFN_PAGESIZE)) {
 		log_debug("vaddr, len or iova not page aligned\n");
 		errno = EINVAL;
 		return -1;

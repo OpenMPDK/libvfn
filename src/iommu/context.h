@@ -33,8 +33,7 @@ struct iommu_ctx_ops {
 	int (*iova_reserve)(struct iommu_ctx *ctx, size_t len, uint64_t *iova,
 			    unsigned long flags);
 	void (*iova_put_ephemeral)(struct iommu_ctx *ctx);
-	int (*dma_map)(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
-		       unsigned long flags, void **opaque);
+	int (*dma_map)(struct iommu_ctx *ctx, struct iova_mapping *m);
 	int (*dma_unmap)(struct iommu_ctx *ctx, struct iova_mapping *m);
 	int (*dma_unmap_all)(struct iommu_ctx *ctx);
 

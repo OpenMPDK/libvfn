@@ -143,8 +143,7 @@ close_dev:
 	return -1;
 }
 
-static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
-				 unsigned long flags, void **opaque UNUSED)
+static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, struct iova_mapping *m)
 {
 	struct iommu_ioas *ioas = container_of_var(ctx, ioas, ctx);
 
@@ -152,26 +151,27 @@ static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len,
 		.size = sizeof(map),
 		.flags = IOMMU_IOAS_MAP_READABLE | IOMMU_IOAS_MAP_WRITEABLE,
 		.ioas_id = ioas->id,
-		.user_va = (uint64_t)vaddr,
-		.length = len,
+		.user_va = (uint64_t)m->vaddr,
+		.length = m->len,
 	};
 
-	if (flags & IOMMU_MAP_FIXED_IOVA) {
+	if (m->flags & IOMMU_MAP_FIXED_IOVA) {
 		map.flags |= IOMMU_IOAS_MAP_FIXED_IOVA;
-		map.iova = *iova;
+		map.iova = m->iova;
 	}
 
-	if (flags & IOMMU_MAP_NOWRITE)
+	if (m->flags & IOMMU_MAP_NOWRITE)
 		map.flags &= ~IOMMU_IOAS_MAP_WRITEABLE;
 
-	if (flags & IOMMU_MAP_NOREAD)
+	if (m->flags & IOMMU_MAP_NOREAD)
 		map.flags &= ~IOMMU_IOAS_MAP_READABLE;
 
 	trace_guard(IOMMUFD_IOAS_MAP_DMA) {
-		if (flags & IOMMU_MAP_FIXED_IOVA)
-			trace_emit("vaddr %p iova 0x%" PRIx64 " len %zu\n", vaddr, *iova, len);
+		if (m->flags & IOMMU_MAP_FIXED_IOVA)
+			trace_emit("vaddr %p iova 0x%" PRIx64 " len %zu\n", m->vaddr, m->iova,
+				m->len);
 		else
-			trace_emit("vaddr %p iova AUTO len %zu\n", vaddr, len);
+			trace_emit("vaddr %p iova AUTO len %zu\n", m->vaddr, m->len);
 	}
 
 	if (ioctl(__iommufd, IOMMU_IOAS_MAP, &map)) {
@@ -179,13 +179,13 @@ static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, void *vaddr, size_t len,
 		return -1;
 	}
 
-	if (flags & IOMMU_MAP_FIXED_IOVA)
+	if (m->flags & IOMMU_MAP_FIXED_IOVA)
 		return 0;
 
-	*iova = map.iova;
+	m->iova = map.iova;
 
 	trace_guard(IOMMUFD_IOAS_MAP_DMA) {
-		trace_emit("allocated iova 0x%" PRIx64 "\n", *iova);
+		trace_emit("allocated iova 0x%" PRIx64 "\n", m->iova);
 	}
 
 	return 0;
