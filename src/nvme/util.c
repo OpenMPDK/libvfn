@@ -61,13 +61,14 @@ int nvme_sync(struct nvme_ctrl *ctrl, struct nvme_sq *sq, union nvme_cmd *sqe, v
 	bool do_unmap = false;
 	int ret = 0;
 
+	void *opaque = NULL; // Could be null, as we're always mapped?
 	if (buf) {
 		struct iommu_ctx *ctx = __iommu_ctx(ctrl);
 
 		if (!iommu_translate_vaddr(ctx, buf, &iova)) {
 			do_unmap = true;
 
-			if (iommu_map_vaddr(ctx, buf, len, &iova, IOMMU_MAP_EPHEMERAL)) {
+			if (_iommu_map_vaddr(ctx, buf, len, &iova, IOMMU_MAP_EPHEMERAL, opaque)) {
 				log_debug("failed to map vaddr\n");
 				return -1;
 			}

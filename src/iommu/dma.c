@@ -102,8 +102,8 @@ bool iommu_translate_vaddr(struct iommu_ctx *ctx, void *vaddr, uint64_t *iova)
 	return false;
 }
 
-int iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
-		    unsigned long flags)
+int _iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
+		    unsigned long flags, void *opaque)
 {
 	uint64_t _iova;
 	struct iova_mapping *m;
@@ -121,6 +121,8 @@ int iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *io
 	m->vaddr = vaddr;
 	m->len = len;
 	m->iova = 0;
+	m->opaque[0] = NULL;
+	m->opaque[1] = opaque;
 	m->flags = flags;
 
 	if (ctx->ops.dma_map(ctx, m)) {
@@ -142,6 +144,14 @@ out:
 
 	return 0;
 }
+
+#ifndef __APPLE__
+int iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
+		    unsigned long flags)
+{
+	return _iommu_map_vaddr(ctx, vaddr, len, iova, flags, NULL);
+}
+#endif
 
 int iommu_unmap_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t *len)
 {

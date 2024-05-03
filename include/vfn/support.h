@@ -33,7 +33,6 @@ extern "C" {
 #else
 #include <vfn/support/platform/macos/byteswap.h>
 #include <vfn/support/platform/macos/errno.h>
-#include <vfn/driverkit/device.h>
 #endif
 
 #include <inttypes.h> // PRIx64 used for logging

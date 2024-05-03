@@ -10,8 +10,6 @@
  * COPYING and LICENSE files for more information.
  */
 
-#ifndef LIBVFN_SUPPORT_MEM_H
-#define LIBVFN_SUPPORT_MEM_H
 
 #include <DriverKit/IOLib.h>
 #include <DriverKit/IOBufferMemoryDescriptor.h>

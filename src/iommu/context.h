@@ -21,7 +21,7 @@ struct iova_mapping {
 	void *vaddr;
 	size_t len;
 	uint64_t iova;
-	void *opaque;
+	void *opaque[2];
 
 	unsigned long flags;
 

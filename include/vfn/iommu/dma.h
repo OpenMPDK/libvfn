@@ -31,6 +31,7 @@ enum iommu_map_flags {
 	IOMMU_MAP_NOREAD	= 1 << 3,
 };
 
+#ifndef __APPLE__
 /**
  * iommu_map_vaddr - Map a virtual memory address to an I/O virtual address
  * @ctx: &struct iommu_ctx
@@ -53,6 +54,9 @@ enum iommu_map_flags {
  */
 int iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
 		    unsigned long flags);
+#endif
+int _iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *iova,
+		    unsigned long flags, void *opaque);
 
 /**
  * iommu_unmap_vaddr - Unmap a virtual memory address in the IOMMU

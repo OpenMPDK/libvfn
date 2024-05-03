@@ -10,9 +10,6 @@
  * COPYING and LICENSE files for more information.
  */
 
-#ifndef LIBVFN_SUPPORT_MEM_H
-#define LIBVFN_SUPPORT_MEM_H
-
 extern size_t __VFN_PAGESIZE;
 extern int __VFN_PAGESHIFT;
 
@@ -108,20 +105,3 @@ static inline void *reallocn(void *mem, unsigned int n, size_t sz)
 
 	return realloc(mem, n * sz);
 }
-
-#define _new_t(t, n, f) \
-	((t *) f(n, sizeof(t)))
-
-#define new_t(t, n) _new_t(t, n, mallocn)
-#define znew_t(t, n) _new_t(t, n, zmallocn)
-
-ssize_t pgmap(void **mem, size_t sz);
-ssize_t pgmapn(void **mem, unsigned int n, size_t sz);
-
-static inline void pgunmap(void *mem, size_t len)
-{
-	if (munmap(mem, len))
-		backtrace_abort();
-}
-
-#endif /* LIBVFN_SUPPORT_MEM_H */

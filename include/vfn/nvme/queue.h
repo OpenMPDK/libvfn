@@ -27,6 +27,7 @@ struct nvme_dbbuf {
  */
 struct nvme_cq {
 	/* private: */
+	void *vaddr_opaque;
 	void *vaddr;
 	uint64_t iova;
 
@@ -51,10 +52,12 @@ struct nvme_sq {
 	/* private: */
 	struct nvme_cq *cq;
 
+	void *vaddr_opaque;
 	void *vaddr;
 	uint64_t iova;
 
 	struct {
+		void *vaddr_opaque;
 		void *vaddr;
 		uint64_t iova;
 	} pages;
