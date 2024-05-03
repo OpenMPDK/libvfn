@@ -202,7 +202,7 @@ static int vfio_iommu_type1_iova_reserve(struct iommu_ctx *ctx, size_t len, uint
 	__autolock(&vfio->lock);
 
 	if (!ALIGNED(len, __VFN_PAGESIZE)) {
-		log_debug("len is not page aligned\n");
+		log_error("len is not page aligned\n");
 		errno = EINVAL;
 		return -1;
 	}
@@ -232,7 +232,7 @@ static int vfio_iommu_type1_init(struct vfio_container *vfio)
 		return 0;
 
 	if (ioctl(vfio->fd, VFIO_SET_IOMMU, VFIO_TYPE1_IOMMU)) {
-		log_debug("failed to set vfio iommu type\n");
+		log_error("failed to set vfio iommu type\n");
 		return -1;
 	}
 
@@ -240,13 +240,13 @@ static int vfio_iommu_type1_init(struct vfio_container *vfio)
 
 #ifdef VFIO_IOMMU_INFO_CAPS
 	if (vfio_iommu_type1_get_capabilities(vfio)) {
-		log_debug("failed to get iommu capabilities\n");
+		log_error("failed to get iommu capabilities\n");
 		return -1;
 	}
 #endif
 
 	if (vfio_iommu_type1_iova_reserve(&vfio->ctx, VFIO_IOMMU_TYPE1_IOVA_RESERVED, &iova, 0x0)) {
-		log_debug("could not reserve iova range\n");
+		log_error("could not reserve iova range\n");
 		return -1;
 	}
 
@@ -270,12 +270,12 @@ static int vfio_group_set_container(struct vfio_group *group, struct vfio_contai
 	log_info("adding group '%s' to container\n", group->path);
 
 	if (ioctl(group->fd, VFIO_GROUP_SET_CONTAINER, &vfio->fd)) {
-		log_debug("failed to add group to vfio container\n");
+		log_error("failed to add group to vfio container\n");
 		return -1;
 	}
 
 	if (vfio_iommu_type1_init(vfio)) {
-		log_debug("failed to configure iommu\n");
+		log_error("failed to configure iommu\n");
 
 		log_fatal_if(ioctl(group->fd, VFIO_GROUP_UNSET_CONTAINER), "unset container\n");
 
@@ -295,18 +295,18 @@ static int vfio_group_open(const char *path)
 
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
-		log_debug("failed to open vfio group file: %s\n", strerror(errno));
+		log_error("failed to open vfio group file: %s\n", strerror(errno));
 		return -1;
 	}
 
 	if (ioctl(fd, VFIO_GROUP_GET_STATUS, &group_status)) {
-		log_debug("failed to get vfio group status\n");
+		log_error("failed to get vfio group status\n");
 		goto close_fd;
 	}
 
 	if (!(group_status.flags & VFIO_GROUP_FLAGS_VIABLE)) {
 		errno = EINVAL;
-		log_debug("vfio group is not viable\n");
+		log_error("vfio group is not viable\n");
 		goto close_fd;
 	}
 
@@ -348,7 +348,7 @@ static int vfio_get_group_fd(struct vfio_container *vfio, const char *path)
 
 	group->fd = vfio_group_open(group->path);
 	if (group->fd < 0) {
-		log_debug("failed to open vfio group\n");
+		log_error("failed to open vfio group\n");
 		goto free_group_path;
 	}
 
@@ -374,7 +374,7 @@ static int vfio_get_device_fd(struct iommu_ctx *ctx, const char *bdf)
 
 	group = pci_get_iommu_group(bdf);
 	if (!group) {
-		log_debug("could not determine iommu group for device %s\n", bdf);
+		log_error("could not determine iommu group for device %s\n", bdf);
 		errno = EINVAL;
 		return -1;
 	}
@@ -386,7 +386,7 @@ static int vfio_get_device_fd(struct iommu_ctx *ctx, const char *bdf)
 
 	ret_fd = ioctl(gfd, VFIO_GROUP_GET_DEVICE_FD, bdf);
 	if (ret_fd < 0) {
-		log_debug("failed to get device fd\n");
+		log_error("failed to get device fd\n");
 		return -1;
 	}
 
@@ -416,13 +416,13 @@ static int vfio_iommu_type1_do_dma_map(struct iommu_ctx *ctx, struct iova_mappin
 	}
 
 	if (!ALIGNED(((uintptr_t)m->vaddr | m->len | m->iova), __VFN_PAGESIZE)) {
-		log_debug("vaddr, len or iova not page aligned\n");
+		log_error("vaddr, len or iova not page aligned\n");
 		errno = EINVAL;
 		return -1;
 	}
 
 	if (ioctl(vfio->fd, VFIO_IOMMU_MAP_DMA, &dma_map)) {
-		log_debug("could not map\n");
+		log_error("could not map\n");
 		return -1;
 	}
 
@@ -446,7 +446,7 @@ static int vfio_iommu_type1_do_dma_unmap(struct iommu_ctx *ctx, struct iova_mapp
 	}
 
 	if (ioctl(vfio->fd, VFIO_IOMMU_UNMAP_DMA, &dma_unmap)) {
-		log_debug("could not unmap\n");
+		log_error("could not unmap\n");
 		return -1;
 	}
 
@@ -484,7 +484,7 @@ static int vfio_iommu_type1_do_dma_unmap_all(struct iommu_ctx *ctx)
 	};
 
 	if (ioctl(vfio->fd, VFIO_IOMMU_UNMAP_DMA, &dma_unmap)) {
-		log_debug("failed to unmap dma\n");
+		log_error("failed to unmap dma\n");
 		return -1;
 	}
 
@@ -509,17 +509,17 @@ static int vfio_init_container(struct vfio_container *vfio)
 {
 	vfio->fd = open("/dev/vfio/vfio", O_RDWR);
 	if (vfio->fd < 0) {
-		log_debug("failed to open vfio device\n");
+		log_error("failed to open vfio device\n");
 		return -1;
 	}
 
 	if (ioctl(vfio->fd, VFIO_GET_API_VERSION) != VFIO_API_VERSION) {
-		log_debug("invalid vfio version\n");
+		log_error("invalid vfio version\n");
 		return -1;
 	}
 
 	if (!ioctl(vfio->fd, VFIO_CHECK_EXTENSION, VFIO_TYPE1_IOMMU)) {
-		log_debug("vfio type 1 iommu not supported\n");
+		log_error("vfio type 1 iommu not supported\n");
 		return -1;
 	}
 

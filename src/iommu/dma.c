@@ -113,7 +113,7 @@ int _iommu_map_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t len, uint64_t *i
 	if (flags & IOMMU_MAP_FIXED_IOVA) {
 		_iova = *iova;
 	} else if (ctx->ops.iova_reserve && ctx->ops.iova_reserve(ctx, len, &_iova, flags)) {
-		log_debug("failed to allocate iova\n");
+		log_error("failed to allocate iova\n");
 		return -1;
 	}
 
@@ -167,7 +167,7 @@ int iommu_unmap_vaddr(struct iommu_ctx *ctx, void *vaddr, size_t *len)
 		*len = m->len;
 
 	if (ctx->ops.dma_unmap(ctx, m)) {
-		log_debug("failed to unmap dma\n");
+		log_error("failed to unmap dma\n");
 		return -1;
 	}
 
@@ -194,7 +194,7 @@ int iommu_unmap_all(struct iommu_ctx *ctx)
 {
 	if (ctx->ops.dma_unmap_all) {
 		if (ctx->ops.dma_unmap_all(ctx)) {
-			log_debug("failed to unmap dma\n");
+			log_error("failed to unmap dma\n");
 			return -1;
 		}
 

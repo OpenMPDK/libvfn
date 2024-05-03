@@ -51,7 +51,7 @@ static int iommu_ioas_update_iova_ranges(struct iommu_ioas *ioas)
 
 	if (ioctl(__iommufd, IOMMU_IOAS_IOVA_RANGES, &iova_ranges)) {
 		if (errno != EMSGSIZE) {
-			log_debug("could not get ioas iova ranges\n");
+			log_error("could not get ioas iova ranges\n");
 			return -1;
 		}
 
@@ -62,7 +62,7 @@ static int iommu_ioas_update_iova_ranges(struct iommu_ioas *ioas)
 		iova_ranges.allowed_iovas = (uintptr_t)ioas->ctx.iova_ranges;
 
 		if (ioctl(__iommufd, IOMMU_IOAS_IOVA_RANGES, &iova_ranges)) {
-			log_debug("could not get ioas iova ranges\n");
+			log_error("could not get ioas iova ranges\n");
 			return -1;
 		}
 	}
@@ -104,33 +104,33 @@ static int iommufd_get_device_fd(struct iommu_ctx *ctx, const char *bdf)
 
 	vfio_id = pci_get_device_vfio_id(bdf);
 	if (!vfio_id) {
-		log_debug("could not determine the vfio device id for %s\n", bdf);
+		log_error("could not determine the vfio device id for %s\n", bdf);
 		return -1;
 	}
 
 	if (asprintf(&path, "/dev/vfio/devices/%s", vfio_id) < 0) {
-		log_debug("asprintf failed\n");
+		log_error("asprintf failed\n");
 		return -1;
 	}
 
 	devfd = open(path, O_RDWR);
 	if (devfd < 0) {
-		log_debug("could not open the device cdev\n");
+		log_error("could not open the device cdev\n");
 		return -1;
 	}
 
 	if (ioctl(devfd, VFIO_DEVICE_BIND_IOMMUFD, &bind)) {
-		log_debug("could not bind device to iommufd\n");
+		log_error("could not bind device to iommufd\n");
 		goto close_dev;
 	}
 
 	if (ioctl(devfd, VFIO_DEVICE_ATTACH_IOMMUFD_PT, &attach_data)) {
-		log_debug("could not associate device with ioas\n");
+		log_error("could not associate device with ioas\n");
 		goto close_dev;
 	}
 
 	if (iommu_ioas_update_iova_ranges(ioas)) {
-		log_debug("could not update iova ranges\n");
+		log_error("could not update iova ranges\n");
 		goto close_dev;
 	}
 
@@ -175,7 +175,7 @@ static int iommu_ioas_do_dma_map(struct iommu_ctx *ctx, struct iova_mapping *m)
 	}
 
 	if (ioctl(__iommufd, IOMMU_IOAS_MAP, &map)) {
-		log_debug("failed to map\n");
+		log_error("failed to map\n");
 		return -1;
 	}
 
@@ -209,7 +209,7 @@ static int iommu_ioas_do_dma_unmap(struct iommu_ctx *ctx, struct iova_mapping *m
 	}
 
 	if (ioctl(__iommufd, IOMMU_IOAS_UNMAP, &unmap)) {
-		log_debug("failed to unmap\n");
+		log_error("failed to unmap\n");
 		return -1;
 	}
 
@@ -241,7 +241,7 @@ static int iommu_ioas_init(struct iommu_ioas *ioas)
 	};
 
 	if (ioctl(__iommufd, IOMMU_IOAS_ALLOC, &alloc_data)) {
-		log_debug("could not allocate ioas\n");
+		log_error("could not allocate ioas\n");
 		return -1;
 	}
 

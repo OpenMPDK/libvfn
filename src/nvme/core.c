@@ -80,14 +80,14 @@ static int nvme_configure_cq(struct nvme_ctrl *ctrl, int qid, int qsize, int vec
 	dstrd = NVME_FIELD_GET(cap, CAP_DSTRD);
 
 	if (qid && qid > ctrl->config.ncqa + 1) {
-		log_debug("qid %d invalid; max qid is %d\n", qid, ctrl->config.ncqa + 1);
+		log_error("qid %d invalid; max qid is %d\n", qid, ctrl->config.ncqa + 1);
 
 		errno = EINVAL;
 		return -1;
 	}
 
 	if (qsize < 2) {
-		log_debug("qsize must be at least 2\n");
+		log_error("qsize must be at least 2\n");
 		errno = EINVAL;
 		return -1;
 	}
@@ -111,7 +111,7 @@ static int nvme_configure_cq(struct nvme_ctrl *ctrl, int qid, int qsize, int vec
 	len = __pgmapn(&cq->vaddr, qsize, 1 << NVME_CQES, &opaque);
 
 	if (_iommu_map_vaddr(__iommu_ctx(ctrl), cq->vaddr, len, &cq->iova, 0x0, opaque)) {
-		log_debug("failed to map vaddr\n");
+		log_error("failed to map vaddr\n");
 
 		__pgunmap(cq->vaddr, len, opaque);
 		return -1;
@@ -128,7 +128,7 @@ static void nvme_discard_cq(struct nvme_ctrl *ctrl, struct nvme_cq *cq)
 		return;
 
 	if (iommu_unmap_vaddr(__iommu_ctx(ctrl), cq->vaddr, &len))
-		log_debug("failed to unmap vaddr\n");
+		log_error("failed to unmap vaddr\n");
 
 	__pgunmap(cq->vaddr, len, cq->vaddr_opaque);
 
@@ -152,14 +152,14 @@ static int nvme_configure_sq(struct nvme_ctrl *ctrl, int qid, int qsize,
 	dstrd = NVME_FIELD_GET(cap, CAP_DSTRD);
 
 	if (qid && qid > ctrl->config.nsqa + 1) {
-		log_debug("qid %d invalid; max qid is %d\n", qid, ctrl->config.nsqa + 1);
+		log_error("qid %d invalid; max qid is %d\n", qid, ctrl->config.nsqa + 1);
 
 		errno = EINVAL;
 		return -1;
 	}
 
 	if (qsize < 2) {
-		log_debug("qsize must be at least 2\n");
+		log_error("qsize must be at least 2\n");
 		errno = EINVAL;
 		return -1;
 	}
@@ -192,7 +192,7 @@ static int nvme_configure_sq(struct nvme_ctrl *ctrl, int qid, int qsize,
 
 	if (_iommu_map_vaddr(__iommu_ctx(ctrl), sq->pages.vaddr, len, &sq->pages.iova, 0x0,
 		sq->pages.vaddr_opaque)) {
-		log_debug("failed to map vaddr\n");
+		log_error("failed to map vaddr\n");
 		goto unmap_pages;
 	}
 
@@ -219,7 +219,7 @@ static int nvme_configure_sq(struct nvme_ctrl *ctrl, int qid, int qsize,
 		goto free_sq_rqs;
 
 	if (_iommu_map_vaddr(__iommu_ctx(ctrl), sq->vaddr, len, &sq->iova, 0x0, sq->vaddr_opaque)) {
-		log_debug("failed to map vaddr\n");
+		log_error("failed to map vaddr\n");
 		goto unmap_sq;
 	}
 
@@ -231,7 +231,7 @@ free_sq_rqs:
 	free(sq->rqs);
 unmap_pages:
 	if (iommu_unmap_vaddr(__iommu_ctx(ctrl), sq->pages.vaddr, (size_t *)&len))
-		log_debug("failed to unmap vaddr\n");
+		log_error("failed to unmap vaddr\n");
 
 	__pgunmap(sq->pages.vaddr, len, sq->pages.vaddr_opaque);
 
@@ -273,12 +273,12 @@ static int nvme_configure_adminq(struct nvme_ctrl *ctrl, unsigned long sq_flags)
 	struct nvme_sq *sq = &ctrl->sq[NVME_AQ];
 
 	if (nvme_configure_cq(ctrl, NVME_AQ, NVME_AQ_QSIZE, 0)) {
-		log_debug("failed to configure admin completion queue\n");
+		log_error("failed to configure admin completion queue\n");
 		return -1;
 	}
 
 	if (nvme_configure_sq(ctrl, NVME_AQ, NVME_AQ_QSIZE, cq, sq_flags)) {
-		log_debug("failed to configure admin submission queue\n");
+		log_error("failed to configure admin submission queue\n");
 		goto discard_cq;
 	}
 
@@ -313,7 +313,7 @@ int nvme_create_iocq(struct nvme_ctrl *ctrl, int qid, int qsize, int vector)
 	uint16_t iv = 0;
 
 	if (nvme_configure_cq(ctrl, qid, qsize, vector)) {
-		log_debug("could not configure io completion queue\n");
+		log_error("could not configure io completion queue\n");
 		return -1;
 	}
 
@@ -355,7 +355,7 @@ int nvme_create_iosq(struct nvme_ctrl *ctrl, int qid, int qsize, struct nvme_cq 
 	union nvme_cmd cmd;
 
 	if (nvme_configure_sq(ctrl, qid, qsize, cq, flags)) {
-		log_debug("could not configure io submission queue\n");
+		log_error("could not configure io submission queue\n");
 		return -1;
 	}
 
@@ -388,12 +388,12 @@ int nvme_delete_iosq(struct nvme_ctrl *ctrl, int qid)
 int nvme_create_ioqpair(struct nvme_ctrl *ctrl, int qid, int qsize, int vector, unsigned long flags)
 {
 	if (nvme_create_iocq(ctrl, qid, qsize, vector)) {
-		log_debug("could not create io completion queue\n");
+		log_error("could not create io completion queue\n");
 		return -1;
 	}
 
 	if (nvme_create_iosq(ctrl, qid, qsize, &ctrl->cq[qid], flags)) {
-		log_debug("could not create io submission queue\n");
+		log_error("could not create io submission queue\n");
 		return -1;
 	}
 
@@ -403,12 +403,12 @@ int nvme_create_ioqpair(struct nvme_ctrl *ctrl, int qid, int qsize, int vector, 
 int nvme_delete_ioqpair(struct nvme_ctrl *ctrl, int qid)
 {
 	if (nvme_delete_iosq(ctrl, qid)) {
-		log_debug("could not delete io submission queue\n");
+		log_error("could not delete io submission queue\n");
 		return -1;
 	}
 
 	if (nvme_delete_iocq(ctrl, qid)) {
-		log_debug("could not delete io completion queue\n");
+		log_error("could not delete io completion queue\n");
 		return -1;
 	}
 
@@ -434,7 +434,7 @@ static int nvme_wait_rdy(struct nvme_ctrl *ctrl, unsigned short rdy)
 
 	do {
 		if ((uint64_t)_time_ns > deadline_ns) {
-			log_debug("timed out\n");
+			log_error("timed out\n");
 
 			errno = ETIMEDOUT;
 			return -1;
@@ -551,14 +551,14 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 		memcpy(&ctrl->opts, &nvme_ctrl_opts_default, sizeof(*opts));
 
 	if (pci_device_info_get_ull(bdf, "class", &classcode)) {
-		log_debug("could not get device class code\n");
+		log_error("could not get device class code\n");
 		return -1;
 	}
 
 	log_info("pci class code is 0x%06llx\n", classcode);
 
 	if ((classcode & 0xffff00) != 0x010800) {
-		log_debug("%s is not an NVMe device\n", bdf);
+		log_error("%s is not an NVMe device\n", bdf);
 		errno = EINVAL;
 		return -1;
 	}
@@ -571,7 +571,7 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 
 	ctrl->regs = vfio_pci_map_bar(&ctrl->pci, 0, 0x1000, 0, PROT_READ | PROT_WRITE);
 	if (!ctrl->regs) {
-		log_debug("could not map controller registersn\n");
+		log_error("could not map controller registersn\n");
 		return -1;
 	}
 
@@ -593,14 +593,14 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 	ctrl->config.mqes = NVME_FIELD_GET(cap, CAP_MQES);
 
 	if (nvme_reset(ctrl)) {
-		log_debug("could not reset controller\n");
+		log_error("could not reset controller\n");
 		return -1;
 	}
 
 	/* map admin queue doorbells */
 	ctrl->doorbells = vfio_pci_map_bar(&ctrl->pci, 0, 0x1000, 0x1000, PROT_WRITE);
 	if (!ctrl->doorbells) {
-		log_debug("could not map doorbells\n");
+		log_error("could not map doorbells\n");
 		return -1;
 	}
 
@@ -609,12 +609,12 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 	ctrl->cq = znew_t(struct nvme_cq, ctrl->opts.ncqr + 2);
 
 	if (nvme_configure_adminq(ctrl, 0x0)) {
-		log_debug("could not configure admin queue\n");
+		log_error("could not configure admin queue\n");
 		return -1;
 	}
 
 	if (nvme_enable(ctrl)) {
-		log_debug("could not enable controller\n");
+		log_error("could not enable controller\n");
 		return -1;
 	}
 
@@ -631,7 +631,7 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 		NVME_FIELD_SET(ctrl->opts.ncqr, FEAT_NRQS_NCQR));
 
 	if (nvme_admin(ctrl, &cmd, NULL, 0, &cqe)) {
-		log_debug("could not set number of queues\n");
+		log_error("could not set number of queues\n");
 		return -1;
 	}
 
@@ -656,7 +656,7 @@ int nvme_init(struct nvme_ctrl *ctrl, const char *bdf, const struct nvme_ctrl_op
 
 	ret = nvme_admin(ctrl, &cmd, vaddr, len, NULL);
 	if (ret) {
-		log_debug("could not identify\n");
+		log_error("could not identify\n");
 		goto out;
 	}
 

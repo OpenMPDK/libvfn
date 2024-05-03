@@ -69,7 +69,7 @@ int nvme_sync(struct nvme_ctrl *ctrl, struct nvme_sq *sq, union nvme_cmd *sqe, v
 			do_unmap = true;
 
 			if (_iommu_map_vaddr(ctx, buf, len, &iova, IOMMU_MAP_EPHEMERAL, opaque)) {
-				log_debug("failed to map vaddr\n");
+				log_error("failed to map vaddr\n");
 				return -1;
 			}
 		}
