@@ -189,6 +189,33 @@ jobs:
           name: meson test log
           path: build/meson-logs/testlog.txt
 
+  macos-build:
+    name: "macOS build"
+    needs: [sanity]
+    runs-on: macos-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          repository: samsungds/macvfn
+          ref: libvfn4 # TODO: 'master' once merged
+
+      - name: Configure PR branch as submodule
+        run: |
+          SUBMODULE_PATH="MacVFN/libvfn"
+          BRANCH_NAME=${GITHUB_HEAD_REF#refs/heads/}
+          git config -f .gitmodules submodule.$SUBMODULE_PATH.url ${GITHUB_SERVER_URL}/${{github.event.pull_request.head.repo.full_name}}
+          git config -f .gitmodules submodule.$SUBMODULE_PATH.branch "$BRANCH_NAME"
+          cat .gitmodules
+          git submodule update --remote --init $SUBMODULE_PATH
+
+      - name: Install dependencies
+        run: brew install meson
+
+      - name: Xcode build
+        run: make build
+
   device-test:
     name: "run emulated nvme device tests"
 
