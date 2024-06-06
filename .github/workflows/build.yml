@@ -189,6 +189,23 @@ jobs:
           name: meson test log
           path: build/meson-logs/testlog.txt
 
+  nix-tests:
+    name: "test building with Nix"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@main
+
+      - name: init cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+
+      - name: build package
+        run:  nix build .
+
   device-test:
     name: "run emulated nvme device tests"
 
