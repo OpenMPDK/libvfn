@@ -45,6 +45,36 @@ static struct opt_table opts[] = {
 	OPT_ENDTABLE,
 };
 
+unsigned int get_lb_bytes(struct nvme_ctrl *ctrl, unsigned long nsid)
+{
+	void *vaddr;
+	ssize_t len;
+	union nvme_cmd cmd;
+	struct nvme_id_ns *id_ns;
+	struct nvme_lbaf *lbaf;
+	unsigned int lb_bytes;
+
+	len = pgmap(&vaddr, NVME_IDENTIFY_DATA_SIZE);
+	if (len < 0)
+		err(1, "could not allocate aligned memory");
+
+	cmd.identify = (struct nvme_cmd_identify) {
+		.opcode = nvme_admin_identify,
+		.cns = NVME_IDENTIFY_CNS_NS,
+		.nsid = cpu_to_le32(nsid),
+	};
+
+	if (nvme_admin(ctrl, &cmd, vaddr, len, NULL))
+		err(1, "nvme_admin");
+
+	id_ns = vaddr;
+	lbaf = &id_ns->lbaf[id_ns->flbas];
+	lb_bytes = 1ULL << lbaf->ds;
+
+	pgunmap(vaddr, len);
+	return lb_bytes;
+}
+
 int main(int argc, char **argv)
 {
 	void *vaddr;
@@ -69,23 +99,28 @@ int main(int argc, char **argv)
 
 	opt_free_table();
 
+	if (op_len == 0)
+		op_len = 0x1000;
+
 	fd = op_read ? STDOUT_FILENO : STDIN_FILENO;
 
 	if (nvme_init(&ctrl, bdf, &ctrl_opts))
 		err(1, "failed to init nvme controller");
 
+	unsigned int lb_nbytes = get_lb_bytes(&ctrl, nsid);
+
 	if (nvme_create_ioqpair(&ctrl, 1, 64, -1, 0x0))
 		err(1, "could not create io queue pair");
 
-	vaddr = mmap(NULL, 0x1000, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+	vaddr = mmap(NULL, op_len, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 
-	if (iommu_map_vaddr(__iommu_ctx(&ctrl), vaddr, 0x1000, &iova, 0x0))
+	if (iommu_map_vaddr(__iommu_ctx(&ctrl), vaddr, op_len, &iova, 0x0))
 		err(1, "failed to reserve iova");
 
 	if (op_write) {
 		fprintf(stderr, "reading payload\n");
 
-		ret = readmaxfd(fd, vaddr, 0x1000);
+		ret = readmaxfd(fd, vaddr, op_len);
 		if (ret < 0)
 			err(1, "could not read fd");
 
@@ -97,9 +132,10 @@ int main(int argc, char **argv)
 	cmd.rw = (struct nvme_cmd_rw) {
 		.opcode = op_write ? nvme_cmd_write : nvme_cmd_read,
 		.nsid = cpu_to_le32(nsid),
+		.nlb = (ROUND_UP(op_len, lb_nbytes)/lb_nbytes) - 1,
 	};
 
-	ret = nvme_rq_map_prp(&ctrl, rq, &cmd, iova, 0x1000);
+	ret = nvme_rq_map_prp(&ctrl, rq, &cmd, iova, op_len);
 	if (ret)
 		err(1, "could not map prps");
 
@@ -111,7 +147,7 @@ int main(int argc, char **argv)
 	if (op_read) {
 		fprintf(stderr, "writing payload\n");
 
-		ret = writeallfd(fd, vaddr, 0x1000);
+		ret = writeallfd(fd, vaddr, op_len);
 		if (ret < 0)
 			err(1, "could not write fd");
 
