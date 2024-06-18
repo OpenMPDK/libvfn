@@ -12,3 +12,6 @@ option('docs', type: 'feature', value: 'auto',
 
 option('trace-events-file', type: 'string', value: 'config/trace-events-all',
   description: 'trace events file')
+
+option('kernel-header-path', type: 'string', value: '',
+  description: 'Path to kernel headers that you want to use for the build')
